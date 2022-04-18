@@ -1,0 +1,74 @@
+---
+title: "DataRes_UCMovies"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+Load and open data
+
+```{r}
+library(tidyverse)
+# Adjust address if importing markdown file
+rotten_tomatoes_movies <- read.csv("~/UCLA/Clubs/DataRes/UCMovies/rotten_tomatoes_movies.txt")
+movies <- rotten_tomatoes_movies
+View(movies)
+movies$original_release_date <- as.Date(x = movies$original_release_date, format = "%Y-%m-%d" )
+movies$streaming_release_date <- as.Date(x = movies$streaming_release_date, format = "%Y-%m-%d" ) 
+colnames(movies)[2] <- "Movie"
+```
+
+```{r}
+ggplot(movies, aes(y = audience_rating, x = tomatometer_rating)) + geom_point()
+ggplot(movies, aes(y = audience_rating, x = tomatometer_rating)) + geom_point(aes(color = content_rating)) + xlab("Critics") + ylab("Audience")
+```
+
+Interestingly, movies with higher critic's scores contain a much higher concentration of NR films
+
+Checking the top 50 Movies worldwide to see their ratings:
+
+```{r}
+# Adjust address if importing markdown file
+All.Time.Worldwide.Box.Office <- read.csv("~/UCLA/Clubs/DataRes/UCMovies/All Time Worldwide Box Office.csv")
+box_office <- All.Time.Worldwide.Box.Office
+
+#Convert dollar amounts from character to numeric
+box_office$WorldwideBox.Office <- as.numeric(gsub("[^0-9.-]", "", box_office$WorldwideBox.Office))
+box_office$DomesticBox.Office <- as.numeric(gsub("[^0-9.-]", "", box_office$DomesticBox.Office))
+box_office$InternationalBox.Office <- as.numeric(gsub("[^0-9.-]", "", box_office$InternationalBox.Office))
+
+top500 <- inner_join(box_office, movies[,c("Movie","tomatometer_rating","audience_rating")])
+top500 <- mutate(top500, "difference" = (top500$tomatometer_rating - top500$audience_rating))
+ggplot(top500, aes(x = difference, y = InternationalBox.Office))+geom_point()
+ggplot(top500, aes(x = difference, y = InternationalBox.Office))+geom_point(aes(color = `Rank`)) + xlim(-60,60)+xlab("Critic Score - Audience Score") + ylab("International Revenue")
+
+mean(top500[top500$difference > 0,]$InternationalBox.Office)
+mean(top500[top500$difference < 0,]$InternationalBox.Office)
+```
+
+
+``` {r}
+critics_choice <- movies[movies$tomatometer_rating > 95,]
+audiences_choice <- movies[movies$audience_rating > 95,]
+
+```
+
+# Critic’s Reviews vs Audience’s Reviews: Which matter more?
+Many sites collect and weigh these scores differently, and it poses an interesting question as to which one of these matters more, and is a better predictor of success. We can take a look at the data from Rotten Tomatoes to get more insight:
+
+When we look at how closely these metrics are aligned, we can observe that there is a weak positive correlation as one would expect, but the large variance present makes ones score unreliable for predicting the other. We also notice that the films with higher critic ratings have a high probability of being rated NR, or “Not Rated.” This is usually because they are uncut versions of a film that were not submitted for rating. PG-13 and R rated movies also find themselves on the lower end of the spectrum on critic reviews. The most interesting observations, however, are the vertical lines on either side of the graph, representing movies/shows that received a 100 on one metric but varying scores on the other.
+
+## Movies with high audience scores and low critic scores:
+
+There are very few movies with high audience scores and low critic scores, and most of them are dramas. They are also about more controversial or conspiratorial topics, such as religion, ghosts, aliens, sex work etc. which seem to resonate with audiences but not with critics. It is surprising that some of the least favored movies by critics are dramas, since these are generally some of the highest rated and have the highest chances of winning awards such as the Oscars. It would seem that drama movies have the highest variance in critic scores among genres.
+
+## Movies with high critic scores and low audience scores:
+
+On the other hand, there are plenty more movies that are loved by critics but not by audiences, most of them being documentaries, comedies, or horror movies. This is a surprising results, as comedy and horror movies in particular are not known for being critically acclaimed, or pandering to critics and are generally targeting the audience.
+
+To see which metric matters more for predicting revenue, we see the ranks of the top 500 movies in terms of international revenue and plot them according to their audience and critic scores. The critics’ scores are marginally more important than the audiences, but all the best films have consensus between the audience and critics. Since this is the case, our best metric to predict revenue from scores is not either one of the scores but the difference between them: the closer it comes to 0 (when the reviews are identical) the higher the revenue gets.
+
